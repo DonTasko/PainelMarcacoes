@@ -48,9 +48,14 @@
   section.card h2 { font-family: "Manrope", sans-serif; font-weight: 700; font-size: 1.05rem; margin: 0 0 12px; }
   label.field { display: block; margin-bottom: 12px; }
   label.field span { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 4px; }
-  input[type=email] {
+  input[type=email], input[type=password] {
     width: 100%; font-family: inherit; font-size: 0.95rem; border: 1px solid var(--border);
     border-radius: 8px; padding: 10px 12px; background: var(--bg); color: var(--ink);
+  }
+  details.settings { margin-bottom: 16px; }
+  details.settings summary {
+    cursor: pointer; font-size: 0.82rem; color: var(--muted); text-decoration: underline;
+    margin-bottom: 10px;
   }
   input:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   button.primary {
@@ -128,21 +133,56 @@
         (message ? '<div class="ok-box">' + escapeHtml(message) + "</div>" : "") +
         '<div id="loginErr"></div>' +
         '<label class="field"><span>Email</span><input type="email" id="loginEmail" autocomplete="email"></label>' +
-        '<button class="primary" id="loginBtn">Enviar link de acesso</button>' +
-        '<p class="muted-note" style="margin-top:12px">Vais receber um email com um link para entrares. Não precisas de password.</p>' +
+        '<label class="field"><span>Password</span><input type="password" id="loginPw" autocomplete="current-password"></label>' +
+        '<button class="primary" id="loginBtn">Entrar</button>' +
       "</section>"
     );
-    document.getElementById("loginBtn").addEventListener("click", function () {
+    var pwField = document.getElementById("loginPw");
+    pwField.addEventListener("keydown", function (e) { if (e.key === "Enter") doLogin(); });
+    document.getElementById("loginBtn").addEventListener("click", doLogin);
+
+    function doLogin() {
       var email = document.getElementById("loginEmail").value.trim();
+      var password = document.getElementById("loginPw").value;
       var errDiv = document.getElementById("loginErr");
       errDiv.innerHTML = "";
       if (!/^\S+@\S+\.\S+$/.test(email)) { errDiv.innerHTML = errBox("Indica um email válido."); return; }
+      if (!password) { errDiv.innerHTML = errBox("Indica a password."); return; }
       var btn = document.getElementById("loginBtn");
-      btn.disabled = true; btn.textContent = "A enviar…";
-      sb.auth.signInWithOtp({ email: email, options: { emailRedirectTo: window.location.href } }).then(function (res) {
-        btn.disabled = false; btn.textContent = "Enviar link de acesso";
-        if (res.error) { errDiv.innerHTML = errBox("Não foi possível enviar o link. Tenta novamente."); return; }
-        renderLogin("Verifica o teu email — enviámos um link de acesso.");
+      btn.disabled = true; btn.textContent = "A entrar…";
+      sb.auth.signInWithPassword({ email: email, password: password }).then(function (res) {
+        btn.disabled = false; btn.textContent = "Entrar";
+        if (res.error) { errDiv.innerHTML = errBox("Email ou password incorretos."); return; }
+        checkAdminAndLoad();
+      });
+    }
+  }
+
+  function renderChangePassword() {
+    return (
+      '<details class="settings"><summary>mudar password</summary>' +
+        '<div id="pwChangeErr"></div><div id="pwChangeOk"></div>' +
+        '<label class="field"><span>Nova password</span><input type="password" id="newPw" autocomplete="new-password"></label>' +
+        '<button class="primary" id="pwChangeBtn">Guardar nova password</button>' +
+      "</details>"
+    );
+  }
+
+  function wireChangePassword() {
+    var btn = document.getElementById("pwChangeBtn");
+    if (!btn) return;
+    btn.addEventListener("click", function () {
+      var pw = document.getElementById("newPw").value;
+      var errDiv = document.getElementById("pwChangeErr");
+      var okDiv = document.getElementById("pwChangeOk");
+      errDiv.innerHTML = ""; okDiv.innerHTML = "";
+      if (pw.length < 8) { errDiv.innerHTML = errBox("A password tem de ter pelo menos 8 caracteres."); return; }
+      btn.disabled = true; btn.textContent = "A guardar…";
+      sb.auth.updateUser({ password: pw }).then(function (res) {
+        btn.disabled = false; btn.textContent = "Guardar nova password";
+        if (res.error) { errDiv.innerHTML = errBox("Não foi possível mudar a password."); return; }
+        document.getElementById("newPw").value = "";
+        okDiv.innerHTML = '<div class="ok-box">Password alterada.</div>';
       });
     });
   }
@@ -183,7 +223,8 @@
         }
         var rows = res.data || [];
         if (rows.length === 0) {
-          renderApp('<section class="card"><p class="empty">Sem marcações futuras.</p></section>');
+          renderApp('<section class="card">' + renderChangePassword() + '<p class="empty">Sem marcações futuras.</p></section>');
+          wireChangePassword();
           return;
         }
         var groups = [];
@@ -210,7 +251,8 @@
           }).join("");
           return '<div class="day-group"><div class="day-label">' + label + "</div>" + items + "</div>";
         }).join("");
-        renderApp('<section class="card">' + html + "</section>");
+        renderApp('<section class="card">' + renderChangePassword() + html + "</section>");
+        wireChangePassword();
         document.querySelectorAll(".cancel").forEach(function (btn) {
           btn.addEventListener("click", function () {
             if (!confirm("Cancelar esta marcação?")) return;
