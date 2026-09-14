@@ -207,11 +207,6 @@
   var WEEKDAYS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
   var WEEKDAYS_SHORT = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
-  function el(html) {
-    var t = document.createElement("template");
-    t.innerHTML = html.trim();
-    return t.content.firstChild;
-  }
   function escapeHtml(s) {
     return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
@@ -232,8 +227,7 @@
   }
 
   function renderApp(html) {
-    document.getElementById("app").innerHTML = "";
-    document.getElementById("app").appendChild(el(html));
+    document.getElementById("app").innerHTML = html;
   }
 
   function errBox(msg) {
