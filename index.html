@@ -201,6 +201,9 @@
   var SUPABASE_KEY = "sb_publishable_vuCCk8kUlvOcpmFLeO8OWw_etBSvgN9";
   var sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+  var SALON_SLUG = new URLSearchParams(window.location.search).get("salao");
+  var SALON_ID = null;
+
   var data = { salon: null, services: [], employees: [], empServices: [], empHours: [] };
   var state = { step: 1, service: null, employee: null, dateStr: null, slot: null };
 
@@ -429,6 +432,7 @@
     btn.disabled = true; btn.textContent = "A confirmar…";
 
     var row = {
+      salon_id: SALON_ID,
       client_name: name,
       client_phone: phone.replace(/\s/g, ""),
       service_id: state.service.id,
@@ -497,28 +501,56 @@
 
   // ---------- Boot ----------
   function loadInitial() {
-    Promise.all([
-      sb.from("salon_settings").select("*").eq("id", 1).single(),
-      sb.from("services").select("id,name,duration_minutes,price,active,sort_order").eq("active", true).order("sort_order"),
-      sb.from("employees").select("id,name,color,active").eq("active", true),
-      sb.from("employee_services").select("employee_id,service_id"),
-      sb.from("employee_hours").select("employee_id,weekday,start_time,end_time,is_closed")
-    ]).then(function (results) {
-      var salonRes = results[0], svcRes = results[1], empRes = results[2], esRes = results[3], ehRes = results[4];
-      data.salon = salonRes.data;
-      data.services = svcRes.data || [];
-      data.employees = empRes.data || [];
-      data.empServices = esRes.data || [];
-      data.empHours = ehRes.data || [];
+    if (!SALON_SLUG) {
+      document.getElementById("salonName").textContent = "Marcar horário";
+      renderApp('<section class="card">' + errBox("Falta indicar o salão neste link. Usa o link completo fornecido pelo salão (termina em ?salao=...).") + "</section>");
+      return;
+    }
 
-      document.getElementById("salonName").textContent = (data.salon && data.salon.name) || "Marcar horário";
+    sb.from("salons").select("*").eq("slug", SALON_SLUG).single().then(function (salonRes) {
+      if (salonRes.error || !salonRes.data) {
+        document.getElementById("salonName").textContent = "Marcar horário";
+        renderApp('<section class="card">' + errBox("Não foi possível encontrar este salão.") + "</section>");
+        return;
+      }
+      data.salon = salonRes.data;
+      SALON_ID = data.salon.id;
+
+      document.getElementById("salonName").textContent = data.salon.name || "Marcar horário";
       var metaBits = [];
-      if (data.salon && data.salon.phone) metaBits.push(data.salon.phone);
-      if (data.salon && data.salon.address) metaBits.push(data.salon.address);
+      if (data.salon.phone) metaBits.push(data.salon.phone);
+      if (data.salon.address) metaBits.push(data.salon.address);
       document.getElementById("salonMeta").textContent = metaBits.join(" · ");
 
-      renderServices();
+      Promise.all([
+        sb.from("services").select("id,name,duration_minutes,price,active,sort_order").eq("salon_id", SALON_ID).eq("active", true).order("sort_order"),
+        sb.from("employees").select("id,name,color,active").eq("salon_id", SALON_ID).eq("active", true)
+      ]).then(function (results) {
+        var svcRes = results[0], empRes = results[1];
+        data.services = svcRes.data || [];
+        data.employees = empRes.data || [];
+        var empIds = data.employees.map(function (e) { return e.id; });
+
+        if (empIds.length === 0) {
+          data.empServices = [];
+          data.empHours = [];
+          renderServices();
+          return;
+        }
+
+        Promise.all([
+          sb.from("employee_services").select("employee_id,service_id").in("employee_id", empIds),
+          sb.from("employee_hours").select("employee_id,weekday,start_time,end_time,is_closed").in("employee_id", empIds)
+        ]).then(function (results2) {
+          data.empServices = results2[0].data || [];
+          data.empHours = results2[1].data || [];
+          renderServices();
+        });
+      }).catch(function () {
+        renderApp('<section class="card">' + errBox("Não foi possível ligar ao servidor. Verifica a tua ligação e tenta novamente.") + "</section>");
+      });
     }).catch(function () {
+      document.getElementById("salonName").textContent = "Marcar horário";
       renderApp('<section class="card">' + errBox("Não foi possível ligar ao servidor. Verifica a tua ligação e tenta novamente.") + "</section>");
     });
   }
