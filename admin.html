@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Marcações — Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Work+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<style>
+  :root {
+    --bg: #f6f4f2; --surface: #ffffff; --surface-2: #eeecf5;
+    --ink: #211f2b; --ink-soft: #4d495c; --muted: #8b869c; --border: #e0dcec;
+    --accent: #6a4fd6; --accent-soft: #ece7fb;
+    --good: #2f7a56; --good-soft: #e3f3ea;
+    --danger: #b23b3b; --danger-soft: #f8e4e1;
+    --shadow: 0 1px 2px rgba(33,31,43,0.05), 0 8px 24px -10px rgba(33,31,43,0.18);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #18171f; --surface: #211f2b; --surface-2: #2a2836;
+      --ink: #eeeaf7; --ink-soft: #c8c2dd; --muted: #948da8; --border: #3a3648;
+      --accent: #a690ff; --accent-soft: #2a2440;
+      --good: #6fcf9d; --good-soft: #1c332a;
+      --danger: #e08080; --danger-soft: #3a2020;
+      --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 10px 28px -10px rgba(0,0,0,0.6);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #18171f; --surface: #211f2b; --surface-2: #2a2836;
+    --ink: #eeeaf7; --ink-soft: #c8c2dd; --muted: #948da8; --border: #3a3648;
+    --accent: #a690ff; --accent-soft: #2a2440;
+    --good: #6fcf9d; --good-soft: #1c332a;
+    --danger: #e08080; --danger-soft: #3a2020;
+    --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 10px 28px -10px rgba(0,0,0,0.6);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: "Work Sans", system-ui, sans-serif; padding: 24px 16px 60px; }
+  .wrap { max-width: 720px; margin: 0 auto; }
+  header.top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 20px; }
+  header.top h1 { font-family: "Manrope", sans-serif; font-weight: 800; font-size: 1.5rem; margin: 0; }
+  button.linklike {
+    background: none; border: none; color: var(--muted); font-size: 0.82rem; cursor: pointer;
+    font-family: inherit; text-decoration: underline;
+  }
+  section.card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; box-shadow: var(--shadow); margin-bottom: 16px; }
+  section.card h2 { font-family: "Manrope", sans-serif; font-weight: 700; font-size: 1.05rem; margin: 0 0 12px; }
+  label.field { display: block; margin-bottom: 12px; }
+  label.field span { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 4px; }
+  input[type=email] {
+    width: 100%; font-family: inherit; font-size: 0.95rem; border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 12px; background: var(--bg); color: var(--ink);
+  }
+  input:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  button.primary {
+    font-family: "Manrope", sans-serif; font-weight: 700; font-size: 0.92rem;
+    background: var(--accent); color: #fff; border: none; border-radius: 10px;
+    padding: 11px 18px; cursor: pointer;
+  }
+  button.primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .err-box { background: var(--danger-soft); color: var(--danger); border-radius: 8px; padding: 10px 12px; font-size: 0.85rem; margin-bottom: 12px; }
+  .ok-box { background: var(--good-soft); color: var(--good); border-radius: 8px; padding: 10px 12px; font-size: 0.85rem; margin-bottom: 12px; }
+  .empty, .muted-note { color: var(--muted); font-size: 0.88rem; }
+
+  .day-group { margin-bottom: 16px; }
+  .day-group:last-child { margin-bottom: 0; }
+  .day-label {
+    font-family: "IBM Plex Mono", monospace; font-size: 0.72rem; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--muted); margin-bottom: 6px;
+  }
+  .booking {
+    display: flex; justify-content: space-between; align-items: center; gap: 12px;
+    padding: 10px 0; border-top: 1px solid var(--border);
+  }
+  .day-group .booking:first-of-type { border-top: none; }
+  .booking .time { font-family: "IBM Plex Mono", monospace; font-weight: 600; font-size: 0.95rem; min-width: 52px; }
+  .booking .info { flex: 1; min-width: 0; }
+  .booking .info .name { font-weight: 600; font-size: 0.92rem; }
+  .booking .info .sub { color: var(--muted); font-size: 0.78rem; }
+  .booking .phone { font-family: "IBM Plex Mono", monospace; font-size: 0.82rem; color: var(--ink-soft); }
+  .booking .cancel {
+    background: none; border: 1px solid var(--border); border-radius: 7px; padding: 5px 10px;
+    font-size: 0.78rem; color: var(--danger); cursor: pointer; flex-shrink: 0;
+  }
+  .booking .cancel:hover { border-color: var(--danger); }
+
+  .skel {
+    background: linear-gradient(90deg, var(--surface-2) 25%, var(--border) 50%, var(--surface-2) 75%);
+    background-size: 200% 100%; border-radius: 6px; height: 14px; margin: 6px 0;
+    animation: shimmer 1.4s ease infinite;
+  }
+  @media (prefers-reduced-motion: reduce) { .skel { animation: none; } }
+  @keyframes shimmer { to { background-position: -200% 0; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1 id="titleEl">Marcações</h1>
+    <button class="linklike" id="logoutBtn" style="display:none">sair</button>
+  </header>
+  <div id="app">
+    <section class="card"><div class="skel" style="width:40%"></div></section>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var SUPABASE_URL = "https://tpfyxhpdbmwvpcbddlsw.supabase.co";
+  var SUPABASE_KEY = "sb_publishable_vuCCk8kUlvOcpmFLeO8OWw_etBSvgN9";
+  var sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  function el(html) { var t = document.createElement("template"); t.innerHTML = html.trim(); return t.content.firstChild; }
+  function escapeHtml(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function renderApp(html) { document.getElementById("app").innerHTML = ""; document.getElementById("app").appendChild(el(html)); }
+  function errBox(msg) { return '<div class="err-box">' + escapeHtml(msg) + "</div>"; }
+
+  function renderLogin(message) {
+    document.getElementById("logoutBtn").style.display = "none";
+    renderApp(
+      '<section class="card"><h2>Entrar</h2>' +
+        (message ? '<div class="ok-box">' + escapeHtml(message) + "</div>" : "") +
+        '<div id="loginErr"></div>' +
+        '<label class="field"><span>Email</span><input type="email" id="loginEmail" autocomplete="email"></label>' +
+        '<button class="primary" id="loginBtn">Enviar link de acesso</button>' +
+        '<p class="muted-note" style="margin-top:12px">Vais receber um email com um link para entrares. Não precisas de password.</p>' +
+      "</section>"
+    );
+    document.getElementById("loginBtn").addEventListener("click", function () {
+      var email = document.getElementById("loginEmail").value.trim();
+      var errDiv = document.getElementById("loginErr");
+      errDiv.innerHTML = "";
+      if (!/^\S+@\S+\.\S+$/.test(email)) { errDiv.innerHTML = errBox("Indica um email válido."); return; }
+      var btn = document.getElementById("loginBtn");
+      btn.disabled = true; btn.textContent = "A enviar…";
+      sb.auth.signInWithOtp({ email: email, options: { emailRedirectTo: window.location.href } }).then(function (res) {
+        btn.disabled = false; btn.textContent = "Enviar link de acesso";
+        if (res.error) { errDiv.innerHTML = errBox("Não foi possível enviar o link. Tenta novamente."); return; }
+        renderLogin("Verifica o teu email — enviámos um link de acesso.");
+      });
+    });
+  }
+
+  function renderNotAdmin() {
+    document.getElementById("logoutBtn").style.display = "inline";
+    renderApp(
+      '<section class="card"><h2>Sem acesso</h2>' +
+        errBox("A tua conta não tem acesso de administrador a este salão.") +
+        '<p class="muted-note">Se és o primeiro a criar conta neste sistema, isso devia ter acontecido automaticamente. Fala com quem configurou o sistema.</p>' +
+      "</section>"
+    );
+  }
+
+  function fmtDatePt(dateStr) {
+    var p = dateStr.split("-");
+    return p[2] + "/" + p[1] + "/" + p[0];
+  }
+  var WEEKDAYS = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
+
+  function loadBookings() {
+    document.getElementById("logoutBtn").style.display = "inline";
+    renderApp('<section class="card"><div class="skel" style="width:40%"></div><div class="skel" style="width:80%"></div></section>');
+
+    var today = new Date();
+    var todayStr = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, "0") + "-" + String(today.getDate()).padStart(2, "0");
+
+    sb.from("bookings")
+      .select("id,client_name,client_phone,booking_date,start_time,end_time,notes,status,services(name),employees(name)")
+      .eq("status", "confirmed")
+      .gte("booking_date", todayStr)
+      .order("booking_date")
+      .order("start_time")
+      .then(function (res) {
+        if (res.error) {
+          renderApp('<section class="card">' + errBox("Não foi possível carregar as marcações.") + "</section>");
+          return;
+        }
+        var rows = res.data || [];
+        if (rows.length === 0) {
+          renderApp('<section class="card"><p class="empty">Sem marcações futuras.</p></section>');
+          return;
+        }
+        var groups = [];
+        var lastDate = null;
+        rows.forEach(function (r) {
+          if (r.booking_date !== lastDate) { groups.push({ date: r.booking_date, items: [] }); lastDate = r.booking_date; }
+          groups[groups.length - 1].items.push(r);
+        });
+        var html = groups.map(function (g) {
+          var d = new Date(g.date + "T00:00:00");
+          var label = fmtDatePt(g.date) + " · " + WEEKDAYS[d.getDay()];
+          var items = g.items.map(function (b) {
+            return (
+              '<div class="booking" data-id="' + b.id + '">' +
+                '<div class="time">' + b.start_time.slice(0, 5) + "</div>" +
+                '<div class="info">' +
+                  '<div class="name">' + escapeHtml(b.client_name) + " — " + escapeHtml((b.services && b.services.name) || "") + "</div>" +
+                  '<div class="sub">' + escapeHtml((b.employees && b.employees.name) || "") + (b.notes ? " · " + escapeHtml(b.notes) : "") + "</div>" +
+                "</div>" +
+                '<div class="phone">' + escapeHtml(b.client_phone) + "</div>" +
+                '<button class="cancel" data-id="' + b.id + '">cancelar</button>' +
+              "</div>"
+            );
+          }).join("");
+          return '<div class="day-group"><div class="day-label">' + label + "</div>" + items + "</div>";
+        }).join("");
+        renderApp('<section class="card">' + html + "</section>");
+        document.querySelectorAll(".cancel").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            if (!confirm("Cancelar esta marcação?")) return;
+            btn.disabled = true; btn.textContent = "…";
+            sb.from("bookings").update({ status: "cancelled" }).eq("id", btn.getAttribute("data-id")).then(function (r) {
+              if (r.error) { alert("Não foi possível cancelar."); btn.disabled = false; btn.textContent = "cancelar"; return; }
+              loadBookings();
+            });
+          });
+        });
+      });
+  }
+
+  function checkAdminAndLoad() {
+    sb.auth.getUser().then(function (res) {
+      var user = res.data && res.data.user;
+      if (!user) { renderLogin(); return; }
+      sb.from("admins").select("user_id").eq("user_id", user.id).then(function (r) {
+        if (r.error || !r.data || r.data.length === 0) { renderNotAdmin(); return; }
+        loadBookings();
+      });
+    });
+  }
+
+  document.getElementById("logoutBtn").addEventListener("click", function () {
+    sb.auth.signOut().then(function () { renderLogin(); });
+  });
+
+  sb.auth.onAuthStateChange(function () { checkAdminAndLoad(); });
+  checkAdminAndLoad();
+})();
+</script>
+</body>
+</html>

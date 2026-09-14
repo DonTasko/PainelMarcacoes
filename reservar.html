@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Marcar Horário</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Work+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<style>
+  :root {
+    --bg: #f6f4f2;
+    --surface: #ffffff;
+    --surface-2: #eeecf5;
+    --ink: #211f2b;
+    --ink-soft: #4d495c;
+    --muted: #8b869c;
+    --border: #e0dcec;
+    --accent: #6a4fd6;
+    --accent-soft: #ece7fb;
+    --good: #2f7a56;
+    --good-soft: #e3f3ea;
+    --warn: #b4632a;
+    --warn-soft: #f6e8db;
+    --danger: #b23b3b;
+    --danger-soft: #f8e4e1;
+    --shadow: 0 1px 2px rgba(33,31,43,0.05), 0 8px 24px -10px rgba(33,31,43,0.18);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #18171f; --surface: #211f2b; --surface-2: #2a2836;
+      --ink: #eeeaf7; --ink-soft: #c8c2dd; --muted: #948da8; --border: #3a3648;
+      --accent: #a690ff; --accent-soft: #2a2440;
+      --good: #6fcf9d; --good-soft: #1c332a;
+      --warn: #e0a865; --warn-soft: #3a2c18;
+      --danger: #e08080; --danger-soft: #3a2020;
+      --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 10px 28px -10px rgba(0,0,0,0.6);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #18171f; --surface: #211f2b; --surface-2: #2a2836;
+    --ink: #eeeaf7; --ink-soft: #c8c2dd; --muted: #948da8; --border: #3a3648;
+    --accent: #a690ff; --accent-soft: #2a2440;
+    --good: #6fcf9d; --good-soft: #1c332a;
+    --warn: #e0a865; --warn-soft: #3a2c18;
+    --danger: #e08080; --danger-soft: #3a2020;
+    --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 10px 28px -10px rgba(0,0,0,0.6);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Work Sans", system-ui, sans-serif;
+    padding: 24px 16px 60px;
+  }
+  .wrap { max-width: 560px; margin: 0 auto; }
+  header.top { margin-bottom: 20px; }
+  header.top h1 {
+    font-family: "Manrope", sans-serif; font-weight: 800; font-size: 1.6rem;
+    margin: 0 0 4px; text-wrap: balance;
+  }
+  header.top .meta { color: var(--muted); font-size: 0.88rem; }
+  header.top .meta a { color: var(--accent); }
+
+  .steps { display: flex; gap: 6px; margin-bottom: 20px; }
+  .steps .dot {
+    flex: 1; height: 4px; border-radius: 4px; background: var(--border);
+  }
+  .steps .dot.done, .steps .dot.active { background: var(--accent); }
+
+  section.card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 18px; box-shadow: var(--shadow);
+    margin-bottom: 16px;
+  }
+  section.card h2 {
+    font-family: "Manrope", sans-serif; font-weight: 700; font-size: 1.05rem;
+    margin: 0 0 12px;
+  }
+  .backlink {
+    display: inline-block; margin-bottom: 10px; font-size: 0.82rem;
+    color: var(--muted); cursor: pointer; text-decoration: none;
+  }
+  .backlink:hover { color: var(--accent); }
+
+  .svc-list, .emp-list { display: flex; flex-direction: column; gap: 8px; }
+  .opt {
+    display: flex; justify-content: space-between; align-items: center; gap: 10px;
+    border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px;
+    background: var(--surface); cursor: pointer; text-align: left;
+    font-family: inherit; color: inherit; width: 100%;
+  }
+  .opt:hover { border-color: var(--accent); }
+  .opt:disabled { opacity: 0.4; cursor: not-allowed; }
+  .opt .name { font-weight: 600; font-size: 0.95rem; }
+  .opt .sub { color: var(--muted); font-size: 0.78rem; margin-top: 2px; }
+  .opt .price {
+    font-family: "IBM Plex Mono", monospace; font-weight: 500; font-size: 0.95rem;
+    flex-shrink: 0; color: var(--accent);
+  }
+  .dotcolor { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+  .date-scroll {
+    display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 4px;
+  }
+  .date-pill {
+    flex-shrink: 0; min-width: 62px; border: 1px solid var(--border); border-radius: 10px;
+    padding: 8px 6px; text-align: center; cursor: pointer; background: var(--surface);
+    font-family: "IBM Plex Mono", monospace;
+  }
+  .date-pill .wd { font-size: 0.66rem; color: var(--muted); text-transform: uppercase; }
+  .date-pill .dm { font-size: 1rem; font-weight: 500; }
+  .date-pill.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .date-pill.active .wd { color: rgba(255,255,255,0.75); }
+  .date-pill.closed { opacity: 0.35; cursor: not-allowed; }
+
+  .slot-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 8px;
+  }
+  .slot-btn {
+    font-family: "IBM Plex Mono", monospace; font-size: 0.88rem; font-weight: 500;
+    border: 1px solid var(--border); border-radius: 8px; padding: 9px 4px;
+    background: var(--surface); cursor: pointer; color: var(--ink);
+  }
+  .slot-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  label.field { display: block; margin-bottom: 12px; }
+  label.field span { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 4px; }
+  input[type=text], input[type=tel], textarea {
+    width: 100%; font-family: inherit; font-size: 0.95rem;
+    border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px;
+    background: var(--bg); color: var(--ink);
+  }
+  input:focus, textarea:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  textarea { resize: vertical; min-height: 60px; }
+
+  .summary-row {
+    display: flex; justify-content: space-between; font-size: 0.88rem; padding: 5px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .summary-row:last-child { border-bottom: none; }
+  .summary-row .k { color: var(--muted); }
+  .summary-row .v { font-weight: 500; text-align: right; }
+
+  button.primary {
+    width: 100%; font-family: "Manrope", sans-serif; font-weight: 700; font-size: 0.95rem;
+    background: var(--accent); color: #fff; border: none; border-radius: 10px;
+    padding: 13px; cursor: pointer; margin-top: 6px;
+  }
+  button.primary:hover { filter: brightness(1.06); }
+  button.primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .empty, .muted-note { color: var(--muted); font-size: 0.88rem; }
+  .err-box {
+    background: var(--danger-soft); color: var(--danger); border-radius: 8px;
+    padding: 10px 12px; font-size: 0.85rem; margin-bottom: 12px;
+  }
+  .ok-box {
+    background: var(--good-soft); color: var(--good); border-radius: 10px;
+    padding: 16px; text-align: center; font-size: 0.95rem;
+  }
+  .ok-box .big { font-family: "Manrope", sans-serif; font-weight: 800; font-size: 1.2rem; margin-bottom: 6px; }
+  a.ics-link {
+    display: inline-block; margin-top: 12px; font-size: 0.85rem; color: var(--accent);
+    text-decoration: none; border: 1px solid var(--accent); border-radius: 8px; padding: 8px 14px;
+  }
+
+  .skel {
+    background: linear-gradient(90deg, var(--surface-2) 25%, var(--border) 50%, var(--surface-2) 75%);
+    background-size: 200% 100%; border-radius: 6px; height: 14px; margin: 6px 0;
+    animation: shimmer 1.4s ease infinite;
+  }
+  @media (prefers-reduced-motion: reduce) { .skel { animation: none; } }
+  @keyframes shimmer { to { background-position: -200% 0; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1 id="salonName">A carregar…</h1>
+    <div class="meta" id="salonMeta"></div>
+  </header>
+
+  <div class="steps">
+    <div class="dot" data-step="1"></div>
+    <div class="dot" data-step="2"></div>
+    <div class="dot" data-step="3"></div>
+    <div class="dot" data-step="4"></div>
+  </div>
+
+  <div id="app">
+    <section class="card"><div class="skel" style="width:50%"></div><div class="skel" style="width:90%"></div><div class="skel" style="width:70%"></div></section>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var SUPABASE_URL = "https://tpfyxhpdbmwvpcbddlsw.supabase.co";
+  var SUPABASE_KEY = "sb_publishable_vuCCk8kUlvOcpmFLeO8OWw_etBSvgN9";
+  var sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  var data = { salon: null, services: [], employees: [], empServices: [], empHours: [] };
+  var state = { step: 1, service: null, employee: null, dateStr: null, slot: null };
+
+  var WEEKDAYS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
+  var WEEKDAYS_SHORT = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+
+  function el(html) {
+    var t = document.createElement("template");
+    t.innerHTML = html.trim();
+    return t.content.firstChild;
+  }
+  function escapeHtml(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function pad2(n) { return (n < 10 ? "0" : "") + n; }
+  function dateKey(d) { return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()); }
+  function timeToMinutes(t) { var p = t.split(":"); return parseInt(p[0], 10) * 60 + parseInt(p[1], 10); }
+  function minutesToTime(m) { return pad2(Math.floor(m / 60)) + ":" + pad2(m % 60) + ":00"; }
+  function money(v) { return v == null ? "" : Number(v).toFixed(2).replace(".", ",") + " €"; }
+
+  function setSteps(n) {
+    document.querySelectorAll(".steps .dot").forEach(function (dot) {
+      var s = parseInt(dot.getAttribute("data-step"), 10);
+      dot.classList.toggle("done", s < n);
+      dot.classList.toggle("active", s === n);
+    });
+  }
+
+  function renderApp(html) {
+    document.getElementById("app").innerHTML = "";
+    document.getElementById("app").appendChild(el(html));
+  }
+
+  function errBox(msg) {
+    return '<div class="err-box">' + escapeHtml(msg) + "</div>";
+  }
+
+  // ---------- Step 1: services ----------
+  function renderServices() {
+    setSteps(1);
+    if (data.services.length === 0) {
+      renderApp('<section class="card"><h2>Serviços</h2>' + errBox("Não há serviços disponíveis de momento.") + "</section>");
+      return;
+    }
+    var items = data.services.map(function (s) {
+      return (
+        '<button class="opt" data-id="' + s.id + '">' +
+          '<div><div class="name">' + escapeHtml(s.name) + '</div><div class="sub">' + s.duration_minutes + " min</div></div>" +
+          '<div class="price">' + money(s.price) + "</div>" +
+        "</button>"
+      );
+    }).join("");
+    renderApp('<section class="card"><h2>Escolhe o serviço</h2><div class="svc-list">' + items + "</div></section>");
+    document.querySelectorAll(".svc-list .opt").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        state.service = data.services.find(function (s) { return s.id === btn.getAttribute("data-id"); });
+        state.employee = null; state.dateStr = null; state.slot = null;
+        chooseEmployeeOrSkip();
+      });
+    });
+  }
+
+  // ---------- Step 2: employee (skip if only one) ----------
+  function chooseEmployeeOrSkip() {
+    var eligibleIds = data.empServices.filter(function (es) { return es.service_id === state.service.id; }).map(function (es) { return es.employee_id; });
+    var eligible = data.employees.filter(function (e) { return eligibleIds.indexOf(e.id) !== -1; });
+    if (eligible.length === 0) {
+      setSteps(2);
+      renderApp('<a class="backlink" id="back1">← voltar</a><section class="card"><h2>' + escapeHtml(state.service.name) + "</h2>" + errBox("Este serviço não tem profissional disponível de momento.") + "</section>");
+      document.getElementById("back1").addEventListener("click", renderServices);
+      return;
+    }
+    if (eligible.length === 1) {
+      state.employee = eligible[0];
+      renderDates();
+      return;
+    }
+    setSteps(2);
+    var items = eligible.map(function (e) {
+      return (
+        '<button class="opt" data-id="' + e.id + '">' +
+          '<div style="display:flex;align-items:center;gap:10px;">' +
+            '<span class="dotcolor" style="background:' + escapeHtml(e.color || "#999") + '"></span>' +
+            '<span class="name">' + escapeHtml(e.name) + "</span>" +
+          "</div>" +
+        "</button>"
+      );
+    }).join("");
+    renderApp('<a class="backlink" id="back1">← voltar</a><section class="card"><h2>Escolhe o profissional</h2><div class="emp-list">' + items + "</div></section>");
+    document.getElementById("back1").addEventListener("click", renderServices);
+    document.querySelectorAll(".emp-list .opt").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        state.employee = eligible.find(function (e) { return e.id === btn.getAttribute("data-id"); });
+        renderDates();
+      });
+    });
+  }
+
+  // ---------- Step 3: date + time ----------
+  function hoursFor(weekday) {
+    return data.empHours.find(function (h) { return h.employee_id === state.employee.id && h.weekday === weekday; });
+  }
+
+  function renderDates() {
+    setSteps(3);
+    var days = data.salon && data.salon.booking_window_days ? data.salon.booking_window_days : 30;
+    var today = new Date();
+    var pills = "";
+    for (var i = 0; i < days; i++) {
+      var d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i);
+      var h = hoursFor(d.getDay());
+      var closed = !h || h.is_closed;
+      pills += (
+        '<div class="date-pill' + (closed ? " closed" : "") + '" data-date="' + dateKey(d) + '">' +
+          '<div class="wd">' + WEEKDAYS_SHORT[d.getDay()] + '</div>' +
+          '<div class="dm">' + d.getDate() + "</div>" +
+        "</div>"
+      );
+    }
+    renderApp(
+      '<a class="backlink" id="back2">← voltar</a>' +
+      '<section class="card"><h2>Escolhe o dia</h2><div class="date-scroll" id="dateScroll">' + pills + "</div></section>" +
+      '<section class="card" id="timeCard" style="display:none"><h2>Escolhe a hora</h2><div id="slotArea"></div></section>'
+    );
+    document.getElementById("back2").addEventListener("click", chooseEmployeeOrSkip);
+    document.querySelectorAll(".date-pill").forEach(function (pill) {
+      if (pill.classList.contains("closed")) return;
+      pill.addEventListener("click", function () {
+        document.querySelectorAll(".date-pill").forEach(function (p) { p.classList.remove("active"); });
+        pill.classList.add("active");
+        state.dateStr = pill.getAttribute("data-date");
+        loadSlots();
+      });
+    });
+  }
+
+  function loadSlots() {
+    var timeCard = document.getElementById("timeCard");
+    var slotArea = document.getElementById("slotArea");
+    timeCard.style.display = "block";
+    slotArea.innerHTML = '<div class="skel" style="width:60%"></div><div class="skel" style="width:80%"></div>';
+
+    var parts = state.dateStr.split("-").map(Number);
+    var d = new Date(parts[0], parts[1] - 1, parts[2]);
+    var h = hoursFor(d.getDay());
+    if (!h || h.is_closed) {
+      slotArea.innerHTML = errBox("Fechado neste dia.");
+      return;
+    }
+    var duration = state.service.duration_minutes;
+    var interval = (data.salon && data.salon.slot_interval_minutes) || 15;
+    var dayStart = timeToMinutes(h.start_time);
+    var dayEnd = timeToMinutes(h.end_time);
+
+    sb.rpc("get_busy_slots", { p_employee_id: state.employee.id, p_date: state.dateStr }).then(function (res) {
+      if (res.error) {
+        slotArea.innerHTML = errBox("Não foi possível carregar os horários. Tenta novamente.");
+        return;
+      }
+      var busy = (res.data || []).map(function (b) { return { start: timeToMinutes(b.start_time), end: timeToMinutes(b.end_time) }; });
+      var now = new Date();
+      var isToday = dateKey(now) === state.dateStr;
+      var nowMinutes = now.getHours() * 60 + now.getMinutes() + 30; // 30-min buffer
+
+      var slots = [];
+      for (var m = dayStart; m + duration <= dayEnd; m += interval) {
+        if (isToday && m < nowMinutes) continue;
+        var overlaps = busy.some(function (b) { return m < b.end && (m + duration) > b.start; });
+        if (!overlaps) slots.push(m);
+      }
+
+      if (slots.length === 0) {
+        slotArea.innerHTML = '<div class="empty">Sem horários livres neste dia. Experimenta outro dia.</div>';
+        return;
+      }
+      slotArea.innerHTML = '<div class="slot-grid">' + slots.map(function (m) {
+        return '<button class="slot-btn" data-m="' + m + '">' + pad2(Math.floor(m / 60)) + ":" + pad2(m % 60) + "</button>";
+      }).join("") + "</div>";
+      document.querySelectorAll(".slot-btn").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var m = parseInt(btn.getAttribute("data-m"), 10);
+          state.slot = { startMin: m, endMin: m + duration };
+          renderClientForm();
+        });
+      });
+    });
+  }
+
+  // ---------- Step 4: client details ----------
+  function renderClientForm() {
+    setSteps(4);
+    var d = state.dateStr.split("-");
+    var dateNice = d[2] + "/" + d[1] + "/" + d[0];
+    var timeNice = pad2(Math.floor(state.slot.startMin / 60)) + ":" + pad2(state.slot.startMin % 60);
+
+    renderApp(
+      '<a class="backlink" id="back3">← voltar</a>' +
+      '<section class="card">' +
+        '<h2>Confirmar marcação</h2>' +
+        '<div class="summary-row"><span class="k">Serviço</span><span class="v">' + escapeHtml(state.service.name) + '</span></div>' +
+        '<div class="summary-row"><span class="k">Profissional</span><span class="v">' + escapeHtml(state.employee.name) + '</span></div>' +
+        '<div class="summary-row"><span class="k">Data</span><span class="v">' + dateNice + '</span></div>' +
+        '<div class="summary-row"><span class="k">Hora</span><span class="v">' + timeNice + '</span></div>' +
+        '<div class="summary-row"><span class="k">Preço</span><span class="v">' + money(state.service.price) + '</span></div>' +
+      '</section>' +
+      '<section class="card">' +
+        '<h2>Os teus dados</h2>' +
+        '<div id="formErr"></div>' +
+        '<label class="field"><span>Nome</span><input type="text" id="fName" autocomplete="name"></label>' +
+        '<label class="field"><span>Telemóvel</span><input type="tel" id="fPhone" autocomplete="tel" placeholder="9xxxxxxxx"></label>' +
+        '<label class="field"><span>Notas (opcional)</span><textarea id="fNotes"></textarea></label>' +
+        '<button class="primary" id="submitBtn">Confirmar marcação</button>' +
+      '</section>'
+    );
+    document.getElementById("back3").addEventListener("click", renderDates);
+    document.getElementById("submitBtn").addEventListener("click", submitBooking);
+  }
+
+  function submitBooking() {
+    var name = document.getElementById("fName").value.trim();
+    var phone = document.getElementById("fPhone").value.trim();
+    var notes = document.getElementById("fNotes").value.trim();
+    var errDiv = document.getElementById("formErr");
+    errDiv.innerHTML = "";
+
+    if (!name) { errDiv.innerHTML = errBox("Indica o teu nome."); return; }
+    if (!/^\d{9}$/.test(phone.replace(/\s/g, ""))) { errDiv.innerHTML = errBox("Indica um telemóvel válido (9 dígitos)."); return; }
+
+    var btn = document.getElementById("submitBtn");
+    btn.disabled = true; btn.textContent = "A confirmar…";
+
+    var row = {
+      client_name: name,
+      client_phone: phone.replace(/\s/g, ""),
+      service_id: state.service.id,
+      employee_id: state.employee.id,
+      booking_date: state.dateStr,
+      start_time: minutesToTime(state.slot.startMin),
+      end_time: minutesToTime(state.slot.endMin),
+      status: "confirmed",
+      notes: notes || null
+    };
+
+    sb.from("bookings").insert(row).select().then(function (res) {
+      if (res.error) {
+        btn.disabled = false; btn.textContent = "Confirmar marcação";
+        if (res.error.code === "23P01") {
+          errDiv.innerHTML = errBox("Esse horário acabou de ser ocupado por outra pessoa. Escolhe outro horário.");
+          loadSlots();
+        } else {
+          errDiv.innerHTML = errBox("Não foi possível confirmar a marcação. Tenta novamente.");
+        }
+        return;
+      }
+      renderConfirmation(row);
+    });
+  }
+
+  function renderConfirmation(row) {
+    setSteps(5);
+    var d = state.dateStr.split("-");
+    var dateNice = d[2] + "/" + d[1] + "/" + d[0];
+    var timeNice = row.start_time.slice(0, 5);
+
+    renderApp(
+      '<section class="card">' +
+        '<div class="ok-box">' +
+          '<div class="big">Marcação confirmada</div>' +
+          escapeHtml(state.service.name) + " · " + dateNice + " às " + timeNice +
+          '<div><a class="ics-link" id="icsLink">Adicionar ao calendário</a></div>' +
+        '</div>' +
+      '</section>'
+    );
+    document.getElementById("icsLink").addEventListener("click", function (e) {
+      e.preventDefault();
+      downloadIcs(row);
+    });
+  }
+
+  function downloadIcs(row) {
+    var startD = row.booking_date.replace(/-/g, "") + "T" + row.start_time.replace(/:/g, "").slice(0, 6);
+    var endD = row.booking_date.replace(/-/g, "") + "T" + row.end_time.replace(/:/g, "").slice(0, 6);
+    var salonName = (data.salon && data.salon.name) || "Marcação";
+    var ics = [
+      "BEGIN:VCALENDAR", "VERSION:2.0", "BEGIN:VEVENT",
+      "SUMMARY:" + state.service.name + " - " + salonName,
+      "DTSTART:" + startD, "DTEND:" + endD,
+      "DESCRIPTION:Marcação em " + salonName,
+      "END:VEVENT", "END:VCALENDAR"
+    ].join("\r\n");
+    var blob = new Blob([ics], { type: "text/calendar" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url; a.download = "marcacao.ics";
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+  }
+
+  // ---------- Boot ----------
+  function loadInitial() {
+    Promise.all([
+      sb.from("salon_settings").select("*").eq("id", 1).single(),
+      sb.from("services").select("id,name,duration_minutes,price,active,sort_order").eq("active", true).order("sort_order"),
+      sb.from("employees").select("id,name,color,active").eq("active", true),
+      sb.from("employee_services").select("employee_id,service_id"),
+      sb.from("employee_hours").select("employee_id,weekday,start_time,end_time,is_closed")
+    ]).then(function (results) {
+      var salonRes = results[0], svcRes = results[1], empRes = results[2], esRes = results[3], ehRes = results[4];
+      data.salon = salonRes.data;
+      data.services = svcRes.data || [];
+      data.employees = empRes.data || [];
+      data.empServices = esRes.data || [];
+      data.empHours = ehRes.data || [];
+
+      document.getElementById("salonName").textContent = (data.salon && data.salon.name) || "Marcar horário";
+      var metaBits = [];
+      if (data.salon && data.salon.phone) metaBits.push(data.salon.phone);
+      if (data.salon && data.salon.address) metaBits.push(data.salon.address);
+      document.getElementById("salonMeta").textContent = metaBits.join(" · ");
+
+      renderServices();
+    }).catch(function () {
+      renderApp('<section class="card">' + errBox("Não foi possível ligar ao servidor. Verifica a tua ligação e tenta novamente.") + "</section>");
+    });
+  }
+
+  loadInitial();
+})();
+</script>
+</body>
+</html>
